@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Insert title here</title>
+<script src="../resorces/js/jquery-3.7.1.min.js"></script>
+</head>
+<body>
+    <button data-role="xhr">XHR</button>
+    <button data-role="ajax">AJAX</button>
+    <button data-role="fetch">FETCH</button>
+    <button onclick="innerbody.innerHTML='';">Clear</button>
+    <span id="loadingarea" style="display:none">
+        <img src="../resorces/images/loading.gif" alt="">
+    </span>
+    <div id="innerbody">
+
+
+    </div>
+<script>
+    let settings={	//비동기 요청처리를 위한 settings 준비
+                url:"../02a/standard.jsp",		//url
+                method:"GET",					//비동기 처리 메소드
+                dataType:"html",				//데이터 타입(request header accept type)
+                beforeSend:function(){			//request를 받기 전 리스닝 상태
+                    loadingarea.style.display = "block";	//리스닝중 보여줄 로딩 이미지
+                },
+                success:function(resp){			//DONE 이후의 실질적 데이터 처리
+                    innerbody.innerHTML=resp
+                },
+                error:function(jqXHR,textStatus,err){// DONE 이후의 status가 200이 아닐경우 발생할 Error객체 처리
+                    innerbody.innerHTML=jqXHR.responseText;
+                },
+                complete:function(){				//데이터 처리 후 finally 로딩 이미지 없애기
+                    loadingarea.style.display = "none";
+                }
+            };
+    let fnOwner = {
+        fn_xhr : function(){
+            console.log("XMLHttpRequest case");
+            // 1. XMLHttpRequest case
+            // request line:URL, method
+            // request header : name/value
+            // request body(only post) : parameter(form-data)
+            // 1) XMLHttpRequest 객체 생성
+            let xhr=new XMLHttpRequest();				//비동기 처리 방법 1 XMLHttpRequest객체 생성
+            // UNSENT -> OPENED -> HEADER-RECEIVE -> LOADING -> DONE
+            xhr.onreadystatechange=function(event){		//해당 객체의 상태가 변경되면 발생하는 이벤트 상태는 숫자로 표시됨 0~4
+                if(this.readyState<XMLHttpRequest.DONE){	//객체의 타입이 4(done)보다 작을때 실행되는 조건
+                    settings.beforeSend();				//로딩창 실행
+                }else{									//DONE(4)에 도착했을 경우
+                    if(this.status == 200){				//상태코드가 200일경우(정상적인 처리가 되었다)
+                        settings.success(this.responseText)		//settings에 success를 호출하여 xhr에 있는 responseText를 전달
+                    }else {
+                        settings.error(this,this.status,`상태코드 ${this.status}에러`);		//error가 발생하였기 때문에 해당 에러 전달
+                    }
+                    settings.complete()					//로딩창닫기
+                }
+            };
+            // 2) request line 결정 : open
+            xhr.open(settings.method,settings.url);		//open xhr객체가 생성되었으므로 생성당시 xhr객체의 상태는 0
+            // 3) request header ... : setRequestHeader
+            xhr.setRequestHeader("accept","text/html");	//xhr의 요청하는 데이터 타입 설정 accept헤더
+            // 4) request body : send
+            xhr.send()		//get방식으로 content(body)가 없기 떄문에 빈상태로 요청
+        },
+        fn_ajax : function(){	//ajax사용
+            console.log("ajax case");
+            $.ajax(settings);	//settings의 요소가 ajax형태의 요소명을 가지고 있기 때문에 그대로 적용
+        },
+        fn_fetch : function(){	//fetch사용
+            console.log("fetch case");
+            let fetchPromise=fetch(settings.url,{			//fetch()실행시 promise객체가 생성됨
+					            	method:settings.method,
+					            	headers:{
+					            		"accept":"text/html"
+					            	}
+					            });
+            fetchPromise.then(resp=>{			//then을 사용하면 참인경우를 나타냄(request가 도착했을 경우)
+            	console.log(resp);
+            	settings.beforeSend();	
+            	if(resp.ok){					//response의 요소 ok가 true이면 resp.text()(실질 데이터 text)리턴
+            		return resp.text();
+            	}else{							//아닐경우 Error객체를 만들어 catch에서 인지할 수 있게 만들어줌 ex) 자바 Exception
+            		throw new Error(`상태코드 ${resp.status}에러`,{cause:resp});	//에러에 resp를 cause에 담아 생성하여 catch에서도 사용할 수 있게 만듬
+            	}
+            }).then(text=>{				//return 시킨 resp.text()
+            	settings.success(text);	//settings에 success에 전달하여 해당 text 출력
+            }).catch((err)=>{			//발생시킨 err객체
+            	console.log(err.cause);
+            	let resp=err.cause;
+            	resp.text().then(ep=>{		//resp의 text가 에러 상태창으로 들어와 있음
+            		settings.error({responseText:ep});	//settings에 error요소에서 responseText를 닷표현방법으로 출력하고 있기 때문에 responseText에
+            											//에러 페이지를 담아 전달
+            	
+            	});
+            	settings.complete();
+            })
+        }
+    }
+    // 2. $.ajax case
+    // 2. fetch case
+    document.querySelectorAll("[data-role]").forEach((el,idx)=>{		//data-role을 가지고 있는 모든 엘리먼트에 접근
+        el.addEventListener("click",(event)=>{					//해당 엘리먼트의 클릭 이벤트발생시 함수
+            // console.log(event.target.dataset.role); 
+            // console.log(event.target.dataset["role"]); 
+
+            let role= event.target.dataset['role'];			// data-role 형식은 key:"value" 형태로 저장되어 있음
+            fnOwner[`fn_${role}`]();	// fnOwner에 role에 대한 데이터 내용이 ajax,fetch,xhr형태로 들어있기 때문에 `${}`을 이용하여 적용
+        })
+    });
+    
+    let samplePromise=new Promise((resolve,reject)=>{	//promise객체 특정된 상황이 발생했을 경우에 대한 처리내용을 미리 선언
+        setTimeout(()=>{						//눈으로 확인하기 위한 동작 시간늦추는 함수
+            let tmpNum=Math.random();			//랜덤수생성
+            if(tmpNum>0.5){			//0.5보다 큰 상황 발생
+                resolve(`생성된 난수:${tmpNum}`);	//then실행
+            }else{					//0.5보다 작은 상황 발생
+                reject(new Error(`생성된 난수:${tmpNum}`));		//catch실행
+        }
+        }, 3000);		//3초 늦추기
+    });
+    samplePromise.then(msg=>console.log(msg))		//0.5보다 큰상황 발생시
+                .catch(err=>console.error(err));	//0.5보다 작은상황 발생시
+</script>
+</body>
+</html>

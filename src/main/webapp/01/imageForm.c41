@@ -1,0 +1,45 @@
+
+<html>
+<head>
+<meta charset='UTF-8'>
+<style type="text/css">
+form {
+	background-color: yellow;
+}
+
+iframe {
+	width: 200px;
+	height: 200px;
+	background-color: blue;
+}
+</style>
+<title>Insert title here</title>
+</head>
+<body>
+	<form action="#cPath#/image.do">
+		<select name="image" onchange="this.form.requestSubmit();">
+			#options#
+		</select> <input type="submit" value="전송" />
+	</form>
+	<div id="imageArea"></div>
+	<script>
+		document.forms[0].addEventListener("submit", function(event) {
+			event.preventDefault();
+// 			"<img src="http://localhost/WebStudy01/image.do?image=lion.jpg" />"
+			let imageName=event.target.image.value;
+// 			let imgTagTxt=`<img src='http://localhost/WebStudy01/image.do?image=${imageName}' />`;
+			let imgTag=document.createElement("img");
+			imgTag.src=`http://localhost/WebStudy01/image.do?image=${imageName}`;
+			imgTag.classList.add("imgArea");
+			let divTag=document.querySelector('#imageArea');
+			
+			document.querySelectorAll("img.imgArea").forEach((img,idx)=>{
+				divTag.removeChild(img);
+			});
+// 			divTag.innerHTML=imgTagTxt;
+			divTag.appendChild(imgTag);
+			return false;
+		});
+	</script>
+</body>
+</html>
